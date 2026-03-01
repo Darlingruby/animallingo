@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String?
+  avatarUrl     String?   @map("avatar_url")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  lastLoginAt   DateTime? @map("last_login_at")
+  isActive      Boolean   @default(true) @map("is_active")
+  
+  // Relations
+  pets          Pet[]
+  translations  Translation[]
+  trainingSessions TrainingSession[]
+  
+  @@map("users")
+}
+
+model Pet {
+  id              String    @id @default(uuid())
+  ownerId         String    @map("owner_id")
+  name            String
+  species         String    // dog, cat, bird, etc.
+  breed           String?
+  birthDate       DateTime? @map("birth_date")
+  gender          String?   // male, female, unknown
+  avatarUrl       String?   @map("avatar_url")
+  weight          Float?
+  weightUnit      String    @default("kg") @map("weight_unit")
+  
+  // Pet profile
+  personality     String?   // JSON array of traits
+  favoriteThings  String?   @map("favorite_things") // JSON array
+  dislikes        String?   // JSON array
+  medicalNotes    String?   @map("medical_notes")
+  
+  // Translation settings
+  vocabularyLevel Int       @default(1) @map("vocabulary_level")
+  translationStyle String   @default("casual") @map("translation_style")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  owner           User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  translations    Translation[]
+  signalPatterns  SignalPattern[]
+  
+  @@map("pets")
+}
+
+model Translation {
+  id              String    @id @default(uuid())
+  petId           String    @map("pet_id")
+  userId          String    @map("user_id")
+  
+  // Input
+  inputType       String    @map("input_type") // audio, video, text
+  inputUrl        String?   @map("input_url")
+  inputData       String?   @map("input_data") // base64 or text
+  duration        Int?      // milliseconds
+  
+  // Signal analysis
+  signalType      String?   @map("signal_type") // bark, meow, purr, etc.
+  confidence      Float?
+  emotionDetected String?   @map("emotion_detected")
+  intensity       Int?      // 1-10 scale
+  
+  // Translation output
+  translatedText  String    @map("translated_text")
+  contextHints    String?   @map("context_hints") // JSON
+  alternativeMeanings String? @map("alternative_meanings") // JSON array
+  
+  // Metadata
+  modelVersion    String    @map("model_version")
+  processingTime  Int       @map("processing_time") // milliseconds
+  feedbackRating  Int?      @map("feedback_rating") // 1-5 stars
+  feedbackNotes   String?   @map("feedback_notes")
+  isFavorite      Boolean   @default(false) @map("is_favorite")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  pet             Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([petId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("translations")
+}
+
+model SignalPattern {
+  id              String    @id @default(uuid())
+  petId           String    @map("pet_id")
+  
+  // Pattern identification
+  patternName     String    @map("pattern_name")
+  signalType      String    @map("signal_type") // bark, meow, body_language
+  
+  // Feature vector (stored as JSON array)
+  featureVector   String    @map("feature_vector")
+  
+  // Pattern metadata
+  frequency       Int       @default(1) // how often this pattern appears
+  confidenceScore Float     @map("confidence_score")
+  contextTags     String?   @map("context_tags") // JSON array
+  
+  // Associated meaning
+  typicalMeaning  String    @map("typical_meaning")
+  learnedFrom     String?   @map("learned_from") // translation IDs or training data
+  
+  // ML metadata
+  modelVersion    String    @map("model_version")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  pet             Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  
+  @@index([petId])
+  @@index([signalType])
+  @@map("signal_patterns")
+}
+
+model TrainingSession {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  
+  // Session details
+  sessionType     String    @map("session_type") // correction, validation, new_pattern
+  petId           String?   @map("pet_id") // optional - general training
+  
+  // Training data
+  inputData       String    @map("input_data") // JSON - translationId, signal, etc.
+  expectedOutput  String    @map("expected_output")
+  modelPrediction String?   @map("model_prediction")
+  
+  // Feedback
+  wasCorrect      Boolean?  @map("was_correct")
+  userCorrection  String?   @map("user_correction")
+  notes           String?
+  
+  // Impact
+  modelUpdated    Boolean   @default(false) @map("model_updated")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([sessionType])
+  @@map("training_sessions")
+}
+
+model ModelVersion {
+  id              String    @id @default(uuid())
+  
+  version         String    @unique
+  name            String?
+  description     String?
+  
+  // Model details
+  architecture    String?   // e.g., "transformer-v2"
+  parameters      Int?      // number of parameters
+  
+  // Training info
+  trainingDataSize Int?     @map("training_data_size")
+  accuracy        Float?
+  f1Score         Float?    @map("f1_score")
+  
+  // Deployment
+  isActive        Boolean   @default(false) @map("is_active")
+  isDefault       Boolean   @default(false) @map("is_default")
+  downloadUrl     String?   @map("download_url")
+  
+  // Metadata
+  releaseNotes    String?   @map("release_notes")
+  deprecatedAt    DateTime? @map("deprecated_at")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  @@map("model_versions")
+}
+
+// For caching frequent queries
+model CacheEntry {
+  id              String    @id @default(uuid())
+  key             String    @unique
+  value           String
+  expiresAt       DateTime  @map("expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  
+  @@index([expiresAt])
+  @@map("cache_entries")
+}
