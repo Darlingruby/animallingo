@@ -1,4 +1,35 @@
+# Dependencies
 node_modules/
 venv/
 __pycache__/
+*.pyc
+
+# Environment & Secrets
+.env
+.env.*
+.env.local
+.env.production
+*.key
+*.pem
+secrets/
+config/local*
+
+# Build outputs
 *.tar.gz
+*.zip
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
